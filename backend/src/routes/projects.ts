@@ -555,5 +555,154 @@ router.get('/projects/:id/caption/:translationId', authMiddleware, async (req: R
   }
 });
 
+// Middleware to verify admin role
+async function adminOnlyMiddleware(req: Request, res: Response, next: any) {
+  const user = (req as any).user;
+  if (!user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (error || profile?.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: Admin access only' });
+    }
+
+    next();
+  } catch (err: any) {
+    return res.status(500).json({ error: `Authorization check failed: ${err.message}` });
+  }
+}
+
+/**
+ * GET /api/admin/users
+ * Retrieve all registered users
+ */
+router.get('/admin/users', authMiddleware, adminOnlyMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { data: users, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return res.status(200).json({ users });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/admin/users/:id/credits
+ * Adjust user credits balance
+ */
+router.post('/admin/users/:id/credits', authMiddleware, adminOnlyMiddleware, async (req: Request, res: Response) => {
+  const userId = req.params.id;
+  const { amount, action } = req.body; // action: 'add' | 'set' | 'remove'
+
+  if (amount === undefined || isNaN(Number(amount))) {
+    return res.status(400).json({ error: 'Invalid or missing amount parameter.' });
+  }
+
+  try {
+    // Get current balance
+    const { data: profile, error: fetchErr } = await supabase
+      .from('profiles')
+      .select('credits_balance, email')
+      .eq('id', userId)
+      .single();
+
+    if (fetchErr || !profile) {
+      return res.status(404).json({ error: 'User profile not found.' });
+    }
+
+    let newBalance = profile.credits_balance;
+    if (action === 'add') {
+      newBalance += Number(amount);
+    } else if (action === 'remove') {
+      newBalance = Math.max(0, newBalance - Number(amount));
+    } else {
+      newBalance = Math.max(0, Number(amount));
+    }
+
+    const { error: updateErr } = await supabase
+      .from('profiles')
+      .update({ credits_balance: newBalance })
+      .eq('id', userId);
+
+    if (updateErr) throw updateErr;
+
+    // Log the transaction
+    await supabase.from('usage_logs').insert({
+      user_id: userId,
+      action: 'admin_adjust_credits',
+      credits_used: action === 'remove' ? Number(amount) : -Number(amount),
+      metadata: { admin_user_id: (req as any).user.id, action, amount, previous_balance: profile.credits_balance, new_balance: newBalance }
+    });
+
+    return res.status(200).json({ 
+      message: `Successfully updated balance for ${profile.email}`,
+      credits_balance: newBalance 
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/system/stats
+ * Get comprehensive analytics
+ */
+router.get('/admin/system/stats', authMiddleware, adminOnlyMiddleware, async (req: Request, res: Response) => {
+  try {
+    // Get profiles
+    const { data: profiles, error: pErr } = await supabase.from('profiles').select('id, plan, credits_balance');
+    // Get projects
+    const { data: projects, error: prErr } = await supabase.from('projects').select('id, status, credits_used');
+    // Get translations
+    const { data: translations, error: trErr } = await supabase.from('project_translations').select('id, status');
+
+    if (pErr || prErr || trErr) {
+      throw new Error('Failed to query system statistics.');
+    }
+
+    const totalUsers = profiles.length;
+    const planDistribution = profiles.reduce((acc: any, p) => {
+      acc[p.plan] = (acc[p.plan] || 0) + 1;
+      return acc;
+    }, {});
+
+    const totalProjects = projects.length;
+    const projectStatusDistribution = projects.reduce((acc: any, p) => {
+      acc[p.status] = (acc[p.status] || 0) + 1;
+      return acc;
+    }, {});
+
+    const totalCreditsUsed = projects.reduce((sum, p) => sum + (p.credits_used || 0), 0);
+    const totalActiveJobs = projects.filter(p => p.status === 'pending' || p.status === 'running').length;
+
+    return res.status(200).json({
+      stats: {
+        totalUsers,
+        totalProjects,
+        totalActiveJobs,
+        totalCreditsUsed,
+        planDistribution,
+        projectStatusDistribution,
+        totalTranslations: translations.length,
+        failedTranslations: translations.filter(t => t.status === 'failed').length,
+        completedTranslations: translations.filter(t => t.status === 'completed').length
+      }
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
 export { updateParentProjectStatus };

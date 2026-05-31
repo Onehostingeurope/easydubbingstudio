@@ -8,6 +8,7 @@ import ProjectDetails from './pages/ProjectDetails';
 import Billing from './pages/Billing';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import AdminDashboard from './pages/AdminDashboard';
 
 // Protected Route Guard
 function PrivateRoute({ children }: { children: JSX.Element }) {
@@ -69,6 +70,10 @@ function StudioLayout({ children }: { children: JSX.Element }) {
     { name: 'New Project', path: '/projects/new', icon: 'add_circle' },
     { name: 'Billing', path: '/billing', icon: 'payments' }
   ];
+
+  if (profile?.role === 'admin') {
+    menuItems.push({ name: 'Admin Portal', path: '/admin', icon: 'admin_panel_settings' });
+  }
 
   return (
     <div className="bg-[#020408] text-[#e2e2e8] min-h-screen flex font-body">
@@ -218,6 +223,16 @@ export default function App() {
             <PrivateRoute>
               <StudioLayout>
                 <Billing />
+              </StudioLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <PrivateRoute>
+              <StudioLayout>
+                <AdminDashboard />
               </StudioLayout>
             </PrivateRoute>
           }
