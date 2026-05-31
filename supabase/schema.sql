@@ -133,6 +133,17 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+-- Helper function to check if a user is an admin without recursion (runs as SECURITY DEFINER)
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE id = auth.uid() AND role = 'admin'
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 10. ROW LEVEL SECURITY (RLS) POLICIES
 ALTER TABLE public.plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -153,12 +164,7 @@ CREATE POLICY "Allow users to update own profile" ON public.profiles
     FOR UPDATE USING (auth.uid() = id);
 
 CREATE POLICY "Allow admin full access to profiles" ON public.profiles
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles
-            WHERE public.profiles.id = auth.uid() AND public.profiles.role = 'admin'
-        )
-    );
+    FOR ALL USING (public.is_admin());
 
 -- Projects Policies: Users can view, create, and update their own projects; Admins can do anything
 CREATE POLICY "Allow users to view own projects" ON public.projects
@@ -174,12 +180,7 @@ CREATE POLICY "Allow users to delete own projects" ON public.projects
     FOR DELETE USING (auth.uid() = user_id);
 
 CREATE POLICY "Allow admin full access to projects" ON public.projects
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles
-            WHERE public.profiles.id = auth.uid() AND public.profiles.role = 'admin'
-        )
-    );
+    FOR ALL USING (public.is_admin());
 
 -- Translations Policies: Owner can view/create/edit
 CREATE POLICY "Allow users to view own translations" ON public.project_translations
@@ -192,33 +193,18 @@ CREATE POLICY "Allow users to update own translations" ON public.project_transla
     FOR UPDATE USING (auth.uid() = user_id);
 
 CREATE POLICY "Allow admin full access to translations" ON public.project_translations
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles
-            WHERE public.profiles.id = auth.uid() AND public.profiles.role = 'admin'
-        )
-    );
+    FOR ALL USING (public.is_admin());
 
 -- Usage Logs Policies: Owner can view
 CREATE POLICY "Allow users to view own usage logs" ON public.usage_logs
     FOR SELECT USING (auth.uid() = user_id);
 
 CREATE POLICY "Allow admin full access to usage logs" ON public.usage_logs
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles
-            WHERE public.profiles.id = auth.uid() AND public.profiles.role = 'admin'
-        )
-    );
+    FOR ALL USING (public.is_admin());
 
 -- Webhook Events Policies: Admin only can read/write
 CREATE POLICY "Allow admin full access to webhooks" ON public.webhook_events
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles
-            WHERE public.profiles.id = auth.uid() AND public.profiles.role = 'admin'
-        )
-    );
+    FOR ALL USING (public.is_admin());
 
 -- 11. SEED DEFAULT PLANS DATA
 INSERT INTO public.plans (name, monthly_price, credits_per_month, max_video_size_mb, max_languages_per_project, allow_precision_mode, allow_proofread)
