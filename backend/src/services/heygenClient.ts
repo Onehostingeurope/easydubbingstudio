@@ -40,6 +40,9 @@ export interface HeyGenStatusResponse {
   failure_message?: string;
 }
 
+// Memory state for sandbox simulation mode
+let mockProgress: Record<string, { status: 'queued' | 'in progress' | 'completed'; count: number }> = {};
+
 /**
  * Handle API requests with retry mechanism for 429 Rate Limits
  */
@@ -50,6 +53,60 @@ async function heygenRequest<T>(
   retries = 3,
   delayMs = 1000
 ): Promise<T> {
+  // Sandbox Simulation mode interceptor
+  if (process.env.SIMULATION_MODE === 'true') {
+    console.log(`[SANDBOX SIMULATION] Intercepted HeyGen ${method} ${endpoint}`);
+    
+    if (endpoint.startsWith('/video-translations/languages')) {
+      return {
+        languages: ['Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Japanese', 'Korean', 'Hindi', 'Arabic']
+      } as any;
+    }
+    
+    if (endpoint.startsWith('/video-translations') && method === 'POST') {
+      const mockId = `hg_sim_${Math.random().toString(36).substring(2, 10)}`;
+      return {
+        video_translation_ids: [mockId]
+      } as any;
+    }
+    
+    if (endpoint.includes('/caption')) {
+      return `1
+00:00:01,000 --> 00:00:04,000
+Welcome to Easy Dubbing Cinematic Studio!
+
+2
+00:00:04,500 --> 00:00:08,000
+Your translation pipeline has rendered beautifully inside our simulation sandbox.` as any;
+    }
+    
+    // Status checks
+    const parts = endpoint.split('/');
+    const translationId = parts[parts.length - 1];
+    
+    if (!mockProgress[translationId]) {
+      mockProgress[translationId] = { status: 'queued', count: 0 };
+    } else {
+      mockProgress[translationId].count += 1;
+      if (mockProgress[translationId].count === 1) {
+        mockProgress[translationId].status = 'in progress';
+      } else if (mockProgress[translationId].count >= 2) {
+        mockProgress[translationId].status = 'completed';
+      }
+    }
+    
+    return {
+      id: translationId,
+      status: mockProgress[translationId].status,
+      language: 'French',
+      video_url: mockProgress[translationId].status === 'completed'
+        ? 'https://www.w3schools.com/html/mov_bbb.mp4'
+        : undefined,
+      thumbnail_url: 'https://www.w3schools.com/images/w3schools_green.jpg',
+      duration: 10.5
+    } as any;
+  }
+
   if (!HEYGEN_API_KEY) {
     throw new Error('HEYGEN_API_KEY is not configured on the server.');
   }
