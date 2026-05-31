@@ -49,11 +49,33 @@ function StudioLayout({ children }: { children: JSX.Element }) {
     async function loadProfile() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase
+        let { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
+        
+        if (error || !data) {
+          console.log('Profile row not found in database. Auto-creating profile for:', user.email);
+          const newProfile = {
+            id: user.id,
+            email: user.email || '',
+            full_name: user.user_metadata?.full_name || '',
+            role: user.email === 'onehostingeurope@gmail.com' ? 'admin' : 'user',
+            plan: 'starter',
+            credits_balance: 30
+          };
+          
+          const { data: insertedData, error: insertErr } = await supabase
+            .from('profiles')
+            .insert([newProfile])
+            .select()
+            .single();
+            
+          if (!insertErr && insertedData) {
+            data = insertedData;
+          }
+        }
         setProfile(data);
       }
     }

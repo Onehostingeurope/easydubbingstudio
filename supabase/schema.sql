@@ -163,6 +163,9 @@ CREATE POLICY "Allow users to view own profile" ON public.profiles
 CREATE POLICY "Allow users to update own profile" ON public.profiles
     FOR UPDATE USING (auth.uid() = id);
 
+CREATE POLICY "Allow users to insert own profile" ON public.profiles
+    FOR INSERT WITH CHECK (auth.uid() = id);
+
 CREATE POLICY "Allow admin full access to profiles" ON public.profiles
     FOR ALL USING (public.is_admin());
 
