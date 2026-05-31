@@ -241,17 +241,32 @@ router.post('/projects', authMiddleware, async (req: Request, res: Response) => 
 router.get('/projects', authMiddleware, async (req: Request, res: Response) => {
   const user = (req as any).user;
   try {
-    const { data: projects, error } = await supabase
+    // Check user role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    const isAdmin = profile?.role === 'admin';
+
+    let dbQuery = supabase
       .from('projects')
       .select(`
         *,
-        translations:project_translations(*)
-      `)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+        translations:project_translations(*),
+        user:profiles(email, full_name)
+      `);
+
+    // If not admin, only get the user's own projects
+    if (!isAdmin) {
+      dbQuery = dbQuery.eq('user_id', user.id);
+    }
+
+    const { data: projects, error } = await dbQuery.order('created_at', { ascending: false });
 
     if (error) throw error;
-    return res.status(200).json({ projects });
+    return res.status(200).json({ projects, isAdmin });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
@@ -266,21 +281,34 @@ router.get('/projects/:id', authMiddleware, async (req: Request, res: Response) 
   const projectId = req.params.id;
 
   try {
-    const { data: project, error } = await supabase
+    // Check user role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    const isAdmin = profile?.role === 'admin';
+
+    let dbQuery = supabase
       .from('projects')
       .select(`
         *,
         translations:project_translations(*)
       `)
-      .eq('id', projectId)
-      .eq('user_id', user.id)
-      .single();
+      .eq('id', projectId);
+
+    if (!isAdmin) {
+      dbQuery = dbQuery.eq('user_id', user.id);
+    }
+
+    const { data: project, error } = await dbQuery.single();
 
     if (error || !project) {
       return res.status(404).json({ error: 'Project not found.' });
     }
 
-    return res.status(200).json({ project });
+    return res.status(200).json({ project, isAdmin });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }

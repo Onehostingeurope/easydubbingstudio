@@ -13,11 +13,16 @@ interface Project {
   credits_used: number;
   created_at: string;
   translations?: any[];
+  user?: {
+    email: string;
+    full_name?: string;
+  };
 }
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalProjects: 0,
@@ -41,6 +46,7 @@ export default function Dashboard() {
         
         if (response.ok && result.projects) {
           setProjects(result.projects);
+          setIsAdmin(!!result.isAdmin);
           
           // Calculate statistics
           const total = result.projects.length;
@@ -84,8 +90,21 @@ export default function Dashboard() {
       {/* Header Info */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Console</h2>
-          <p className="text-on-surface-variant text-sm mt-1">Your video translation engine status.</p>
+          <div className="flex items-center gap-3">
+            <h2 className="text-3xl font-bold tracking-tight">
+              {isAdmin ? 'System Admin Console' : 'Console'}
+            </h2>
+            {isAdmin && (
+              <span className="px-2.5 py-0.5 rounded bg-primary/10 border border-primary/30 text-primary text-[10px] font-technical tracking-wider font-bold">
+                ADMIN OVERVIEW
+              </span>
+            )}
+          </div>
+          <p className="text-on-surface-variant text-sm mt-1">
+            {isAdmin 
+              ? 'Real-time administrative view of all translations and user queues.'
+              : 'Your video translation engine status.'}
+          </p>
         </div>
         <button
           onClick={() => navigate('/projects/new')}
@@ -100,7 +119,9 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="glass-card p-6 rounded-xl flex items-center justify-between">
           <div>
-            <p className="font-technical text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Total Projects</p>
+            <p className="font-technical text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">
+              {isAdmin ? 'Total System Projects' : 'Total Projects'}
+            </p>
             <p className="text-2xl font-bold">{stats.totalProjects}</p>
           </div>
           <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
@@ -109,7 +130,9 @@ export default function Dashboard() {
         </div>
         <div className="glass-card p-6 rounded-xl flex items-center justify-between">
           <div>
-            <p className="font-technical text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Credits Used</p>
+            <p className="font-technical text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">
+              {isAdmin ? 'Total System Credits Used' : 'Credits Used'}
+            </p>
             <p className="text-2xl font-bold">{stats.creditsUsed}</p>
           </div>
           <div className="w-12 h-12 rounded-lg bg-tertiary/10 flex items-center justify-center text-tertiary">
@@ -118,7 +141,9 @@ export default function Dashboard() {
         </div>
         <div className="glass-card p-6 rounded-xl flex items-center justify-between">
           <div>
-            <p className="font-technical text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Active Jobs</p>
+            <p className="font-technical text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">
+              {isAdmin ? 'System Active Jobs' : 'Active Jobs'}
+            </p>
             <p className="text-2xl font-bold">{stats.activeJobs}</p>
           </div>
           <div className="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
@@ -191,6 +216,11 @@ export default function Dashboard() {
                     </div>
                     <div className="p-4">
                       <h4 className="font-bold text-base truncate group-hover:text-primary transition-colors">{project.title}</h4>
+                      {isAdmin && project.user && (
+                        <p className="font-technical text-[9px] text-[#06B6D4] mt-0.5 truncate">
+                          User: {project.user.email}
+                        </p>
+                      )}
                       <p className="font-technical text-[10px] text-on-surface-variant mt-1">
                         Source: {project.source_language} → {targetLangs || 'Translating'}
                       </p>
