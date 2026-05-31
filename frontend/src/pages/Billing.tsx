@@ -31,7 +31,7 @@ export default function Billing() {
       const session = (await supabase.auth.getSession()).data.session;
       
       // Simulate checkout session route backend callback
-      const response = await fetch('/api/webhooks/stripe', {
+      const response = await fetch('/_/backend/api/webhooks/stripe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

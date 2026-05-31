@@ -44,7 +44,7 @@ export default function ProjectDetails() {
   const fetchProjectDetails = async () => {
     try {
       const session = (await supabase.auth.getSession()).data.session;
-      const response = await fetch(`/api/projects/${id}`, {
+      const response = await fetch(`/_/backend/api/projects/${id}`, {
         headers: {
           'Authorization': `Bearer ${session?.access_token}`
         }
@@ -85,7 +85,7 @@ export default function ProjectDetails() {
     setRefreshing(true);
     try {
       const session = (await supabase.auth.getSession()).data.session;
-      const response = await fetch(`/api/projects/${id}/refresh`, {
+      const response = await fetch(`/_/backend/api/projects/${id}/refresh`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session?.access_token}`
@@ -111,7 +111,7 @@ export default function ProjectDetails() {
     setRefreshing(true);
     try {
       const session = (await supabase.auth.getSession()).data.session;
-      const response = await fetch(`/api/projects/${id}/retry`, {
+      const response = await fetch(`/_/backend/api/projects/${id}/retry`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session?.access_token}`
@@ -133,7 +133,7 @@ export default function ProjectDetails() {
   const handleDownloadCaption = async (translationId: string, format: 'srt' | 'vtt') => {
     try {
       const session = (await supabase.auth.getSession()).data.session;
-      const response = await fetch(`/api/projects/${project?.id}/caption/${translationId}?format=${format}`, {
+      const response = await fetch(`/_/backend/api/projects/${project?.id}/caption/${translationId}?format=${format}`, {
         headers: {
           'Authorization': `Bearer ${session?.access_token}`
         }

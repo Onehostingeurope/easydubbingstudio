@@ -32,7 +32,7 @@ export default function Dashboard() {
         if (!user) return;
 
         // Fetch user projects
-        const response = await fetch('/api/projects', {
+        const response = await fetch('/_/backend/api/projects', {
           headers: {
             'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
           }

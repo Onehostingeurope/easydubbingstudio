@@ -23,6 +23,10 @@ app.use(express.json());
 app.use('/api', projectsRouter);
 app.use('/api/webhooks', webhooksRouter);
 
+// Support custom monorepo prefix routing
+app.use('/_/backend/api', projectsRouter);
+app.use('/_/backend/api/webhooks', webhooksRouter);
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });

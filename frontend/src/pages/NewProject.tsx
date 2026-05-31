@@ -33,7 +33,7 @@ export default function NewProject() {
   useEffect(() => {
     async function loadLanguages() {
       try {
-        const response = await fetch('/api/heygen/languages');
+        const response = await fetch('/_/backend/api/heygen/languages');
         const data = await response.json();
         if (response.ok && data.languages) {
           setSupportedLanguages(data.languages);
@@ -69,7 +69,7 @@ export default function NewProject() {
     setSubmitting(true);
     try {
       const session = (await supabase.auth.getSession()).data.session;
-      const response = await fetch('/api/projects', {
+      const response = await fetch('/_/backend/api/projects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
