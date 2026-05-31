@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 interface Translation {
@@ -35,9 +35,11 @@ interface Project {
 
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
   const videoPlayerRef = useRef<HTMLVideoElement>(null);
 
@@ -130,6 +132,32 @@ export default function ProjectDetails() {
     }
   };
 
+  const handleDeleteProject = async () => {
+    if (!window.confirm('Are you absolutely sure you want to delete this project? This will permanently remove all video translation jobs.')) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      const response = await fetch(`/_/backend/api/projects/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`
+        }
+      });
+      if (response.ok) {
+        navigate('/dashboard');
+      } else {
+        const result = await response.json();
+        alert(`Deletion failed: ${result.error}`);
+      }
+    } catch (err: any) {
+      alert(`Deletion failed: ${err.message}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleDownloadCaption = async (translationId: string, format: 'srt' | 'vtt') => {
     try {
       const session = (await supabase.auth.getSession()).data.session;
@@ -193,6 +221,14 @@ export default function ProjectDetails() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleDeleteProject}
+            disabled={deleting}
+            className="px-4 py-2.5 rounded-lg border border-red-500/30 hover:border-red-500 text-red-400 hover:bg-red-500/5 text-xs font-technical transition-all flex items-center gap-2 active:scale-95 duration-100"
+          >
+            <span className="material-symbols-outlined text-base">delete</span>
+            <span>{deleting ? 'DELETING...' : 'DELETE PROJECT'}</span>
+          </button>
           <button
             onClick={handleRefresh}
             disabled={refreshing}

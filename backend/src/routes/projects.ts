@@ -519,6 +519,52 @@ router.post('/projects/:id/retry', authMiddleware, async (req: Request, res: Res
 });
 
 /**
+ * DELETE /api/projects/:id
+ * Delete project and associated translations
+ */
+router.delete('/projects/:id', authMiddleware, async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const projectId = req.params.id;
+
+  try {
+    // Check user role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    const isAdmin = profile?.role === 'admin';
+
+    let dbQuery = supabase
+      .from('projects')
+      .select('id, user_id')
+      .eq('id', projectId);
+
+    if (!isAdmin) {
+      dbQuery = dbQuery.eq('user_id', user.id);
+    }
+
+    const { data: project, error: checkErr } = await dbQuery.single();
+
+    if (checkErr || !project) {
+      return res.status(404).json({ error: 'Project not found or unauthorized.' });
+    }
+
+    const { error: deleteErr } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', projectId);
+
+    if (deleteErr) throw deleteErr;
+
+    return res.status(200).json({ message: 'Project deleted successfully.' });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/projects/:id/caption/:translationId
  * Proxy and download caption from HeyGen (formats: srt / vtt)
  */
