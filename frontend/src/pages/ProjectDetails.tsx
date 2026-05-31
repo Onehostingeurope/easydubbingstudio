@@ -221,14 +221,33 @@ export default function ProjectDetails() {
         {/* Left Column: Video player preview & Status chips */}
         <div className="lg:col-span-7 space-y-6">
           <div className="relative group rounded-2xl overflow-hidden glass-panel border border-white/5">
-            {activeVideoUrl ? (
-              <video
-                ref={videoPlayerRef}
-                src={activeVideoUrl}
-                controls
-                className="w-full aspect-video bg-black object-contain opacity-90 hover:opacity-100 transition-opacity duration-300"
-              />
-            ) : (
+            {activeVideoUrl ? (() => {
+              // Parse YouTube link
+              const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+              const match = activeVideoUrl.match(regExp);
+              const isYouTube = match && match[2].length === 11;
+              const embedUrl = isYouTube ? `https://www.youtube.com/embed/${match[2]}` : null;
+
+              if (embedUrl) {
+                return (
+                  <iframe
+                    src={embedUrl}
+                    className="w-full aspect-video bg-black object-contain border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                );
+              }
+
+              return (
+                <video
+                  ref={videoPlayerRef}
+                  src={activeVideoUrl}
+                  controls
+                  className="w-full aspect-video bg-black object-contain opacity-90 hover:opacity-100 transition-opacity duration-300"
+                />
+              );
+            })() : (
               <div className="aspect-video bg-surface-container-low flex flex-col items-center justify-center text-center p-6 text-on-surface-variant">
                 <span className="material-symbols-outlined text-4xl mb-2 animate-pulse">video_library</span>
                 <p className="text-sm font-medium">Video rendering is in progress.</p>
