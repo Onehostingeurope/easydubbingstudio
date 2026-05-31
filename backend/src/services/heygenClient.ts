@@ -141,13 +141,17 @@ export async function createVideoTranslation(
 
     console.log(`Submitting translation to HeyGen for language ${lang}:`, JSON.stringify(singlePayload));
     
-    const response = await heygenRequest<{ video_translation_id: string }>(
+    const response = await heygenRequest<{ video_translation_ids?: string[]; video_translation_id?: string }>(
       'POST',
       '/video-translations',
       singlePayload
     );
 
-    translationIds.push({ video_translation_id: response.video_translation_id });
+    const transId = response.video_translation_ids && response.video_translation_ids[0]
+      ? response.video_translation_ids[0]
+      : (response.video_translation_id || '');
+
+    translationIds.push({ video_translation_id: transId });
   }
 
   return translationIds;
